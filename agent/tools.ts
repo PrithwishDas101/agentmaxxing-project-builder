@@ -20,7 +20,7 @@ export type Tool = {
 };
 
 export const tools: Tool[] = [
-  // ─── 1. A paid API: the agent's wallet signs a payment to unlock it ───
+  // â”€â”€â”€ 1. A paid API: the agent's wallet signs a payment to unlock it â”€â”€â”€
   {
     name: "get_weather",
     description:
@@ -39,7 +39,7 @@ export const tools: Tool[] = [
     },
   },
 
-  // ─── 2. Wallet tool: read the agent's own wallet ───
+  // â”€â”€â”€ 2. Wallet tool: read the agent's own wallet â”€â”€â”€
   {
     name: "get_my_wallet",
     description:
@@ -52,7 +52,56 @@ export const tools: Tool[] = [
     }),
   },
 
-  // ─── 3. A plain tool: no wallet, no API. Try changing this one first! ───
+  // â”€â”€â”€ 3. A plain tool: no wallet, no API. Try changing this one first! â”€â”€â”€
+  {
+    name: "get_wallet_status",
+    description:
+      "Get the agent's crypto wallet status, including its address, ETH balance, network, and block explorer URL.",
+    parameters: {
+      type: "object",
+      properties: {},
+    },
+    run: async () => {
+      const address = getWalletAddress();
+
+      if (!address) {
+        return {
+          configured: false,
+          message: "The agent does not have a wallet yet.",
+        };
+      }
+
+      const balance = await getWalletBalance();
+
+      return {
+        configured: true,
+        address,
+        balance,
+        network: "Base Sepolia",
+        explorer: `https://sepolia.basescan.org/address/${address}`,
+      };
+    },
+  },
+  {
+    name: "get_project_risks",
+    description:
+      "Get a preliminary project risk assessment from a paid API. Use this when the user asks about project risks, project weaknesses, project failure risks, or ways to reduce risks. This tool requires an x402 signed demo payment.",
+    parameters: {
+      type: "object",
+      properties: {
+        project: {
+          type: "string",
+          description: "Name or short description of the software project.",
+        },
+      },
+      required: ["project"],
+    },
+    run: async ({ project }, { baseUrl }) => {
+      return payAndFetch(
+        `${baseUrl}/api/project-risk?project=${encodeURIComponent(project)}`,
+      );
+    },
+  },
   {
     name: "roll_dice",
     description: "Roll a dice with the given number of sides.",

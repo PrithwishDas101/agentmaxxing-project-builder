@@ -78,15 +78,31 @@ export async function payAndFetch(url: string) {
   };
 }
 
-/** Used by the API: is this X-PAYMENT header a real, signed payment? */
+/** Verify a signed demo payment and require it to come from the configured agent wallet. */
 export async function verifyPayment(header: string | null) {
   if (!header) return null;
+
   try {
-    const { payment, signature } = JSON.parse(Buffer.from(header, "base64").toString()) as {
+    const { payment, signature } = JSON.parse(
+      Buffer.from(header, "base64").toString(),
+    ) as {
       payment: Payment;
       signature: Hex;
     };
-    const valid = await verifyMessage({ address: payment.from, message: JSON.stringify(payment), signature });
+
+    if (!payment || !signature || !payment.from || !payment.to) return null;
+
+    const account = loadAccount();
+    if (!account || payment.from.toLowerCase() !== account.address.toLowerCase()) {
+      return null;
+    }
+
+    const valid = await verifyMessage({
+      address: account.address,
+      message: JSON.stringify(payment),
+      signature,
+    });
+
     return valid ? payment : null;
   } catch {
     return null;

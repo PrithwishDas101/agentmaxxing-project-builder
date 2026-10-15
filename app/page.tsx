@@ -31,6 +31,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { ProjectRiskPayment } from "@/components/project-risk-payment";
 
 type Step = { tool: string; args: unknown; result: any; error?: boolean };
 type Message = {
@@ -237,6 +238,8 @@ export default function Home() {
               </p>
             </CardContent>
           </Card>
+
+          <ProjectRiskPayment />
         </aside>
 
         {/* Right: chat */}

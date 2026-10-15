@@ -149,7 +149,7 @@ export async function payAndFetchX402(url: string) {
   let settlement: { success?: boolean; transaction?: string; network?: string } | null = null;
   if (header) {
     try {
-      settlement = decodePaymentResponseHeader(header) as typeof settlement;
+      settlement = decodePaymentResponseHeader(header) as unknown as { success?: boolean; transaction?: string; network?: string };
     } catch {
       settlement = null;
     }

@@ -228,3 +228,19 @@ The main things I experimented with were:
 ## License
 
 MIT
+
+
+## Week 3: Real x402 Project-Risk Payments
+
+The project-risk endpoint uses the official x402 protocol on **Base Sepolia**. Unpaid requests receive an HTTP 402 payment challenge. A compatible client signs a USDC payment authorization, and the configured x402 facilitator verifies and settles the payment before the protected report handler returns its response.
+
+- **Network:** Base Sepolia (`eip155:84532`)
+- **Default price:** `$0.01` in test USDC (configurable through `X402_PRICE`)
+- **Receiving address:** configure `X402_PAY_TO` with a Base Sepolia wallet address you control
+- **Facilitator:** `https://x402.org/facilitator` by default; optionally configure `X402_FACILITATOR_URL`
+- **Browser payment:** connect MetaMask, switch to Base Sepolia, and use the paid project-risk report card
+- **Agent payment:** the agent can also call the risk endpoint using its own wallet; that wallet needs test USDC
+
+Set the x402 variables in your local environment and in Vercel before testing payments. Never commit private keys. The report is a preliminary template-based assessment, not an audit of project source code. When the facilitator returns a settlement transaction hash, the app links to BaseScan.
+
+The legacy weather endpoint still demonstrates the starter kit's signed mock-payment flow; it is separate from the real x402 project-risk endpoint.

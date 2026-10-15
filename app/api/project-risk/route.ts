@@ -1,39 +1,19 @@
-﻿import { verifyPayment } from "@/agent/wallet";
+import { NextRequest, NextResponse } from "next/server";
+import { withX402 } from "@x402/next";
+import { getProjectRiskRoutes, getProjectRiskResourceServer } from "@/lib/x402-server";
 
-const PRICE = "0.01";
-const ASSET = "USDC";
-const PAY_TO = "0x000000000000000000000000000000000000dEaD";
+export const dynamic = "force-dynamic";
 
-export async function GET(req: Request) {
-  const project = new URL(req.url).searchParams.get("project")?.trim();
-
+async function reportHandler(request: NextRequest) {
+  const project = request.nextUrl.searchParams.get("project")?.trim();
   if (!project) {
-    return Response.json(
+    return NextResponse.json(
       { error: "Missing project name. Provide a project query parameter." },
       { status: 400 },
     );
   }
 
-  const payment = await verifyPayment(req.headers.get("X-PAYMENT"));
-
-  if (
-    !payment ||
-    payment.to !== PAY_TO ||
-    Number(payment.amount) < Number(PRICE) ||
-    payment.asset !== ASSET
-  ) {
-    return Response.json(
-      {
-        error: "Payment Required",
-        price: PRICE,
-        asset: ASSET,
-        payTo: PAY_TO,
-      },
-      { status: 402 },
-    );
-  }
-
-  return Response.json({
+  return NextResponse.json({
     project,
     assessmentType: "Preliminary project risk assessment",
     risks: [
@@ -56,11 +36,30 @@ export async function GET(req: Request) {
         mitigation: "Add error handling, timeouts, and tests for failure scenarios.",
       },
     ],
-    paidBy: payment.from,
-    payment: {
-      amount: `${PRICE} ${ASSET}`,
-      verified: true,
-      settlement: "Signed demo payment; no on-chain transfer",
-    },
+    note: "This is a preliminary template-based assessment, not a source-code audit.",
+    payment: { verified: true, protocol: "x402", network: "Base Sepolia" },
   });
+}
+
+function notConfigured() {
+  return NextResponse.json(
+    {
+      code: "not_configured",
+      error: "x402 payments are not configured. Set X402_PAY_TO to a Base Sepolia receiving address you control.",
+    },
+    { status: 503 },
+  );
+}
+
+let cachedGet: ((request: NextRequest) => Promise<Response>) | null = null;
+
+export async function GET(request: NextRequest) {
+  const routes = getProjectRiskRoutes();
+  if (!routes) {
+    cachedGet = null;
+    return notConfigured();
+  }
+
+  cachedGet ??= withX402(reportHandler, routes, getProjectRiskResourceServer());
+  return cachedGet(request);
 }

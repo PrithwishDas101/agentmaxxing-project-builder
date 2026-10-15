@@ -8,7 +8,7 @@
  * Add your own tool: copy one of the objects below, change it,
  * and save. It shows up in the "Tools" list on the page.
  */
-import { getWalletAddress, getWalletBalance, payAndFetch } from "./wallet";
+import { getWalletAddress, getWalletBalance, payAndFetch, payAndFetchX402 } from "./wallet";
 
 export type Tool = {
   name: string;
@@ -85,7 +85,7 @@ export const tools: Tool[] = [
   {
     name: "get_project_risks",
     description:
-      "Get a preliminary project risk assessment from a paid API. Use this when the user asks about project risks, project weaknesses, project failure risks, or ways to reduce risks. This tool requires an x402 signed demo payment.",
+      "Get a preliminary project risk assessment from a paid API. Use this when the user asks about project risks, project weaknesses, project failure risks, or ways to reduce risks. This tool pays through the official x402 protocol on Base Sepolia. The agent wallet must hold test USDC.",
     parameters: {
       type: "object",
       properties: {
@@ -97,7 +97,7 @@ export const tools: Tool[] = [
       required: ["project"],
     },
     run: async ({ project }, { baseUrl }) => {
-      return payAndFetch(
+      return payAndFetchX402(
         `${baseUrl}/api/project-risk?project=${encodeURIComponent(project)}`,
       );
     },

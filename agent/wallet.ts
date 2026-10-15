@@ -108,3 +108,63 @@ export async function verifyPayment(header: string | null) {
     return null;
   }
 }
+
+
+/**
+ * Call an x402-protected endpoint with the agent's wallet.
+ * The wallet signs an EIP-712 authorization; the official facilitator
+ * handles verification and settlement on Base Sepolia.
+ */
+export async function payAndFetchX402(url: string) {
+  const account = requireAccount();
+  const { x402Client } = await import("@x402/core/client");
+  const { registerExactEvmScheme } = await import("@x402/evm/exact/client");
+  const { wrapFetchWithPayment, decodePaymentResponseHeader } = await import("@x402/fetch");
+  const client = new x402Client();
+
+  registerExactEvmScheme(client, {
+    signer: {
+      address: account.address,
+      async signTypedData(message) {
+        return account.signTypedData(message as any);
+      },
+    },
+    networks: ["eip155:84532"],
+  });
+  client.setSpendControls({ maxAmountPerPayment: process.env.X402_PRICE?.trim() || "$0.01" });
+
+  const fetchWithPayment = wrapFetchWithPayment(fetch, client);
+  const response = await fetchWithPayment(url);
+  const data = await response.json().catch(() => null) as unknown;
+
+  if (!response.ok) {
+    return {
+      error: "The x402 project-risk request failed.",
+      status: response.status,
+      details: data,
+    };
+  }
+
+  const header = response.headers.get("PAYMENT-RESPONSE") || response.headers.get("X-PAYMENT-RESPONSE");
+  let settlement: { success?: boolean; transaction?: string; network?: string } | null = null;
+  if (header) {
+    try {
+      settlement = decodePaymentResponseHeader(header) as typeof settlement;
+    } catch {
+      settlement = null;
+    }
+  }
+
+  return {
+    data,
+    payment: {
+      status: settlement?.success ? "settled" : "accepted",
+      protocol: "x402",
+      network: "Base Sepolia",
+      transaction: settlement?.transaction ?? null,
+      explorer: settlement?.transaction
+        ? `https://sepolia.basescan.org/tx/${settlement.transaction}`
+        : null,
+    },
+  };
+}

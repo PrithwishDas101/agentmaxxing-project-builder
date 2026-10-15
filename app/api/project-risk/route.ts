@@ -4,7 +4,7 @@ import { getProjectRiskRoutes, getProjectRiskResourceServer } from "@/lib/x402-s
 
 export const dynamic = "force-dynamic";
 
-async function reportHandler(request: NextRequest) {
+async function reportHandler(request: NextRequest): Promise<NextResponse> {
   const project = request.nextUrl.searchParams.get("project")?.trim();
   if (!project) {
     return NextResponse.json(

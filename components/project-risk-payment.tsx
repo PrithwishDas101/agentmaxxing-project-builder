@@ -10,6 +10,7 @@ import { x402Client } from "@x402/core/client";
 import { registerExactEvmScheme } from "@x402/evm/exact/client";
 import type { ClientEvmSigner } from "@x402/evm";
 import { decodePaymentResponseHeader, wrapFetchWithPayment } from "@x402/fetch";
+import { baseSepolia, createWalletClient, custom, recoverTypedDataAddress } from "viem";
 import type { Address, EIP1193Provider } from "viem";
 
 declare global {
@@ -114,24 +115,36 @@ export function ProjectRiskPayment() {
     setSettlement(null);
 
     try {
+      // Use viem's wallet transport so EIP-712 data is serialized consistently
+      // for MetaMask, then recover the signature locally before sending payment.
+      const walletClient = createWalletClient({
+        account: address,
+        chain: baseSepolia,
+        transport: custom(provider),
+      });
       const signer: ClientEvmSigner = {
         address,
         async signTypedData(message) {
-          return await provider.request({
-            method: "eth_signTypedData_v4",
-            params: [
-              address,
-              JSON.stringify(
-                {
-                  domain: message.domain,
-                  types: message.types,
-                  primaryType: message.primaryType,
-                  message: message.message,
-                },
-                (_key, value) => typeof value === "bigint" ? value.toString() : value,
-              ),
-            ],
-          }) as `0x${string}`;
+          const typedData = {
+            domain: message.domain as any,
+            types: message.types as any,
+            primaryType: message.primaryType as any,
+            message: message.message as any,
+          };
+          const signature = await walletClient.signTypedData({
+            account: address,
+            ...typedData,
+          });
+          const recoveredAddress = await recoverTypedDataAddress({
+            ...typedData,
+            signature,
+          });
+          if (recoveredAddress.toLowerCase() !== address.toLowerCase()) {
+            throw new Error(
+              `MetaMask signature address mismatch: expected ${address}, recovered ${recoveredAddress}. No payment was submitted.`,
+            );
+          }
+          return signature;
         },
       };
 

@@ -10,7 +10,8 @@ import { x402Client } from "@x402/core/client";
 import { registerExactEvmScheme } from "@x402/evm/exact/client";
 import type { ClientEvmSigner } from "@x402/evm";
 import { decodePaymentResponseHeader, wrapFetchWithPayment } from "@x402/fetch";
-import { baseSepolia, createWalletClient, custom, recoverTypedDataAddress } from "viem";
+import { createWalletClient, custom, recoverTypedDataAddress } from "viem";
+import { baseSepolia } from "viem/chains";
 import type { Address, EIP1193Provider } from "viem";
 
 declare global {

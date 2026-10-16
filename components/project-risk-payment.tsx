@@ -143,23 +143,46 @@ export function ProjectRiskPayment() {
         `/api/project-risk?project=${encodeURIComponent(project.trim())}`,
       );
       const body = await response.json().catch(() => null) as any;
+      // A failed x402 settlement commonly returns HTTP 402 with an empty JSON
+      // body ({}) and puts the real facilitator error in PAYMENT-RESPONSE.
+      // Read that protocol header on failures too, not only on HTTP 200.
+      const header = response.headers.get("PAYMENT-RESPONSE") || response.headers.get("X-PAYMENT-RESPONSE");
+      let decodedPaymentResponse: ReturnType<typeof decodePaymentResponseHeader> | null = null;
+      if (header) {
+        try {
+          decodedPaymentResponse = decodePaymentResponseHeader(header);
+        } catch {
+          // Fall back to the HTTP response body if a proxy returned a malformed header.
+        }
+      }
+
       if (!response.ok) {
-        // x402 may return another 402 after the wallet signature if the facilitator
-        // rejects or cannot settle the authorization. Preserve its diagnostic body
-        // instead of incorrectly blaming the user's token balance.
+        const paymentDetails = decodedPaymentResponse && !decodedPaymentResponse.success
+          ? [
+              decodedPaymentResponse.errorReason,
+              decodedPaymentResponse.errorMessage,
+              decodedPaymentResponse.transaction
+                ? `transaction: ${decodedPaymentResponse.transaction}`
+                : null,
+              decodedPaymentResponse.network
+                ? `network: ${decodedPaymentResponse.network}`
+                : null,
+            ].filter(Boolean).join(" — ")
+          : "";
         const details =
+          paymentDetails ||
           (typeof body?.error === "string" && body.error) ||
           (typeof body?.message === "string" && body.message) ||
           (typeof body?.errorReason === "string" && body.errorReason) ||
           (typeof body?.errorMessage === "string" && body.errorMessage) ||
           (typeof body?.details === "string" && body.details) ||
           (typeof body?.code === "string" && body.code) ||
-          (body ? JSON.stringify(body) : "");
+          (body && Object.keys(body).length > 0 ? JSON.stringify(body) : "");
         if (response.status === 402) {
           throw new Error(
             details
               ? `x402 payment was not settled (HTTP 402): ${details}`
-              : "x402 payment was not settled (HTTP 402). Your wallet has enough test USDC; check the facilitator response and payment requirements before retrying.",
+              : "x402 returned HTTP 402 without diagnostic details. Check the PAYMENT-RESPONSE header and server/facilitator logs.",
           );
         }
         throw new Error(
@@ -167,14 +190,12 @@ export function ProjectRiskPayment() {
         );
       }
 
-      const header = response.headers.get("PAYMENT-RESPONSE") || response.headers.get("X-PAYMENT-RESPONSE");
       let txHash: string | null = null;
-      if (header) {
-        const decoded = decodePaymentResponseHeader(header);
-        if (!decoded.success) {
-          throw new Error(decoded.errorMessage || decoded.errorReason || "The facilitator did not confirm settlement.");
+      if (decodedPaymentResponse) {
+        if (!decodedPaymentResponse.success) {
+          throw new Error(decodedPaymentResponse.errorMessage || decodedPaymentResponse.errorReason || "The facilitator did not confirm settlement.");
         }
-        txHash = decoded.transaction || null;
+        txHash = decodedPaymentResponse.transaction || null;
       }
       setReport(body as RiskReport);
       setSettlement({ txHash });

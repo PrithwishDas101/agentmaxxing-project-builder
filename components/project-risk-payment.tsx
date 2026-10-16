@@ -144,10 +144,26 @@ export function ProjectRiskPayment() {
       );
       const body = await response.json().catch(() => null) as any;
       if (!response.ok) {
+        // x402 may return another 402 after the wallet signature if the facilitator
+        // rejects or cannot settle the authorization. Preserve its diagnostic body
+        // instead of incorrectly blaming the user's token balance.
+        const details =
+          (typeof body?.error === "string" && body.error) ||
+          (typeof body?.message === "string" && body.message) ||
+          (typeof body?.errorReason === "string" && body.errorReason) ||
+          (typeof body?.errorMessage === "string" && body.errorMessage) ||
+          (typeof body?.details === "string" && body.details) ||
+          (typeof body?.code === "string" && body.code) ||
+          (body ? JSON.stringify(body) : "");
+        if (response.status === 402) {
+          throw new Error(
+            details
+              ? `x402 payment was not settled (HTTP 402): ${details}`
+              : "x402 payment was not settled (HTTP 402). Your wallet has enough test USDC; check the facilitator response and payment requirements before retrying.",
+          );
+        }
         throw new Error(
-          body?.error || (response.status === 402
-            ? "Payment was not completed. Check your test USDC balance."
-            : `Request failed with status ${response.status}.`),
+          details || `Request failed with status ${response.status}.`,
         );
       }
 

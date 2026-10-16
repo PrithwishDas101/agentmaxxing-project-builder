@@ -8,6 +8,11 @@ Built for Week 1 of the AgentMaxxing program, this project uses Google Gemini's 
 
 **[Open the live agent](https://agentmaxxing-project-builder.vercel.app)**
 
+## Product Presence
+
+- **X profile:** [@AgentProjectBui](https://x.com/AgentProjectBui)
+- **Launch post:** [Introducing AgentMaxxing Project Builder](https://x.com/AgentProjectBui/status/2111014604671480069)
+
 ## What It Does
 
 Give the agent a software idea and it can turn it into a development roadmap covering:
